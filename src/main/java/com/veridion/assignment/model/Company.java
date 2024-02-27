@@ -1,12 +1,15 @@
 package com.veridion.assignment.model;
 
 import jakarta.persistence.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.Id;
 import org.springframework.util.StringUtils;
 
 @Entity
 @Table(name = "companies")
 public class Company {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Company.class);
 
     @jakarta.persistence.Id
     @Id
@@ -98,5 +101,21 @@ public class Company {
             return requiredFieldsPresent && StringUtils.hasLength(address);
         }
         return requiredFieldsPresent;
+    }
+
+    public void print() {
+        String phoneNumbers = this.getPhoneNumbers();
+        String socialMediaLinks = this.getSocialMediaLinks();
+        String address = this.getAddress();
+
+        if (StringUtils.hasLength(phoneNumbers) || StringUtils.hasLength(socialMediaLinks) || StringUtils.hasLength(address)) {
+            LOGGER.info("Company extracted from URL: " + this.getUrl() +
+                    (StringUtils.hasLength(phoneNumbers) ? " has phone number(s): " + phoneNumbers : "") +
+                    (StringUtils.hasLength(socialMediaLinks) ? ", social media link(s): " + socialMediaLinks : "") +
+                    (StringUtils.hasLength(address) ? ", address: " + address : "") +
+                    ".");
+        } else {
+            LOGGER.info("Company extracted from URL: " + this.getUrl() + " - no datapoints could be extracted.");
+        }
     }
 }
