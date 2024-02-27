@@ -58,6 +58,7 @@ public class ScraperTask implements Callable<Void> {
 
             // Scrape data from the main page
             Company company = scrapeCompanyInfo(driver);
+            company.setUrl(url);
 
             Company contactCompany = null;
 
@@ -73,7 +74,8 @@ public class ScraperTask implements Callable<Void> {
             }
 
             // Output the scraped data
-            contactCompany.print();
+            LOGGER.info("Company extracted from URL: " + company.getUrl() + " has phone number(s): " + company.getPhoneNumbers() + ", social media link(s): " + company.getSocialMediaLinks() + " and the address: " + company.getAddress() + ".");
+
         } catch (Exception exception) {
             LOGGER.error("Could not open URL: " + url);
         } finally {
@@ -96,9 +98,10 @@ public class ScraperTask implements Callable<Void> {
         }
     }
 
+    // TODO: Test if this actually merges anything
     private void mergeCompanyInfo(Company mainCompany, Company contactCompany) {
         // Merge data from the contact page into the main company object
-        mergeField(mainCompany::setPhoneNumber, mainCompany.getPhoneNumber(), contactCompany.getPhoneNumber());
+        mergeField(mainCompany::setPhoneNumbers, mainCompany.getPhoneNumbers(), contactCompany.getPhoneNumbers());
         mergeField(mainCompany::setAddress, mainCompany.getAddress(), contactCompany.getAddress());
         mergeField(mainCompany::setSocialMediaLinks, mainCompany.getSocialMediaLinks(), contactCompany.getSocialMediaLinks());
     }
@@ -134,7 +137,7 @@ public class ScraperTask implements Callable<Void> {
         Company company = new Company();
 
         // Extract phone numbers
-        company.setPhoneNumber(findPhoneNumbers(driver));
+        company.setPhoneNumbers(findPhoneNumbers(driver));
 
         // Extract social media links
         company.setSocialMediaLinks(findSocialMediaLinks(driver));
