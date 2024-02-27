@@ -6,8 +6,8 @@ import com.veridion.assignment.executors.ExecutorServiceManager;
 import java.util.concurrent.ExecutorService;
 
 public class WebScraper {
-    private static final String CSV_FILE_SMALL_SIZE = "src/main/resources/websites/sample-websites-small-size.csv";
-    private static final String CSV_FILE = "src/main/resources/websites/sample-websites.csv";
+    private static final String CSV_FILE_SMALL_SIZE = "src/main/resources/input-websites/sample-websites-small-size.csv";
+    private static final String CSV_FILE = "src/main/resources/input-websites/sample-websites.csv";
 
     public static void main(String[] args) {
         CSVReader csvReader = CSVReader.getInstance(CSV_FILE);
