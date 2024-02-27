@@ -16,8 +16,14 @@ public class Company {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name")
-    private String name;
+    @Column(name = "commercialName")
+    private String commercialName;
+
+    @Column(name = "legalName")
+    private String legalName;
+
+    @Column(name = "allAvailableNames")
+    private String allAvailableNames;
 
     @Column(name = "phoneNumber")
     private String phoneNumbers;
@@ -39,7 +45,7 @@ public class Company {
 
     // Constructor with parameters
     public Company(String name, String phoneNumbers, String socialMediaLinks, String address, String url) {
-        this.name = name;
+        this.commercialName = name;
         this.phoneNumbers = phoneNumbers;
         this.socialMediaLinks = socialMediaLinks;
         this.address = address;
@@ -55,12 +61,12 @@ public class Company {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getCommercialName() {
+        return commercialName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setCommercialName(String name) {
+        this.commercialName = name;
     }
 
     public String getPhoneNumbers() {
@@ -117,5 +123,21 @@ public class Company {
         } else {
             LOGGER.info("Company extracted from URL: " + this.getUrl() + " - no datapoints could be extracted.");
         }
+    }
+
+    public String getLegalName() {
+        return legalName;
+    }
+
+    public void setLegalName(String legalName) {
+        this.legalName = legalName;
+    }
+
+    public String getAllAvailableNames() {
+        return allAvailableNames;
+    }
+
+    public void setAllAvailableNames(String allAvailableNames) {
+        this.allAvailableNames = allAvailableNames;
     }
 }

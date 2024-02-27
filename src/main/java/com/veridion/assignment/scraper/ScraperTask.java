@@ -12,9 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -45,6 +43,7 @@ public class ScraperTask implements Callable<Void> {
     static {
         startTime = System.currentTimeMillis();
     }
+    private static final List<Company> companies = Collections.synchronizedList(new ArrayList<>());
 
 
     public ScraperTask(String url) {
@@ -61,7 +60,6 @@ public class ScraperTask implements Callable<Void> {
             ChromeOptions chromeOptions = new ChromeOptions();
             chromeOptions.addArguments("--headless"); // Enable headless mode
             chromeOptions.setBinary(CHROME_PATH);
-
             driver = new ChromeDriver(chromeOptions);
 
             // Set page load timeout
@@ -90,7 +88,10 @@ public class ScraperTask implements Callable<Void> {
             successfulCrawls.incrementAndGet();
             // Output the scraped data
 
+            addCompany(company);
+
             company.print();
+
         } catch (Exception exception) {
             LOGGER.error("Could not open URL: " + url + ".");
         } finally {
@@ -253,5 +254,13 @@ public class ScraperTask implements Callable<Void> {
 
     private static String getCoverage(AtomicInteger atomicInteger, List<String> urls) {
         return String.format("%.2f", atomicInteger.get() / (double) urls.size() * 100) + "%";
+    }
+
+    private void addCompany(Company company) {
+        companies.add(company);
+    }
+
+    protected static List<Company> getCompanies() {
+        return companies;
     }
 }

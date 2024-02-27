@@ -1,6 +1,7 @@
 package com.veridion.assignment.scraper;
 
 import com.veridion.assignment.csv.CSVReader;
+import com.veridion.assignment.csv.CSVWriter;
 import com.veridion.assignment.executors.ExecutorServiceManager;
 
 import java.util.concurrent.ExecutorService;
@@ -10,7 +11,7 @@ public class WebScraper {
     private static final String CSV_FILE = "src/main/resources/input-websites/sample-websites.csv";
 
     public static void main(String[] args) {
-        CSVReader csvReader = CSVReader.getInstance(CSV_FILE);
+        CSVReader csvReader = CSVReader.getInstance(CSV_FILE_SMALL_SIZE);
         ExecutorService executor = ExecutorServiceManager.getExecutorService();
         try {
             for (String url : csvReader.getUrls()) {
@@ -20,9 +21,11 @@ public class WebScraper {
             ExecutorServiceManager.shutdownExecutorService();
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(ScraperTask::printDataAnalysis));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            CSVWriter.writeCompanies(ScraperTask.getCompanies());
+            ScraperTask.printDataAnalysis();
+        }));
     }
-
 
 }
 
