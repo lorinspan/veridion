@@ -17,13 +17,16 @@ public class Company {
     private String name;
 
     @Column(name = "phoneNumber")
-    private String phoneNumber;
+    private String phoneNumbers;
 
     @Column(name = "socialMediaLinks")
     private String socialMediaLinks;
 
     @Column(name = "address")
     private String address;
+
+    @Column(name = "url") // New column for URL
+    private String url;
 
     // Constructors, getters, and setters
 
@@ -32,11 +35,12 @@ public class Company {
     }
 
     // Constructor with parameters
-    public Company(String name, String phoneNumber, String socialMediaLinks, String address) {
+    public Company(String name, String phoneNumbers, String socialMediaLinks, String address, String url) {
         this.name = name;
-        this.phoneNumber = phoneNumber;
+        this.phoneNumbers = phoneNumbers;
         this.socialMediaLinks = socialMediaLinks;
         this.address = address;
+        this.url = url;
     }
 
     // Getters and setters
@@ -56,12 +60,12 @@ public class Company {
         this.name = name;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    public String getPhoneNumbers() {
+        return phoneNumbers;
     }
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    public void setPhoneNumbers(String phoneNumber) {
+        this.phoneNumbers = phoneNumber;
     }
 
     public String getSocialMediaLinks() {
@@ -80,22 +84,19 @@ public class Company {
         this.address = address;
     }
 
-    public void print() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Company has:");
-        if (phoneNumber != null && !phoneNumber.isEmpty()) {
-            sb.append(" phone number ").append(phoneNumber);
-        }
-        if (socialMediaLinks != null && !socialMediaLinks.isEmpty()) {
-            sb.append(" social media links ").append(socialMediaLinks);
-        }
-        if (address != null && !address.isEmpty()) {
-            sb.append(" address ").append(address);
-        }
-        System.out.println(sb);
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     public boolean isComplete(boolean optionalAddress) {
-        return (StringUtils.hasLength(phoneNumber) && StringUtils.hasLength(socialMediaLinks) && (optionalAddress && StringUtils.hasLength(address)));
+        boolean requiredFieldsPresent = StringUtils.hasLength(phoneNumbers) && StringUtils.hasLength(socialMediaLinks);
+        if (optionalAddress) {
+            return requiredFieldsPresent && StringUtils.hasLength(address);
+        }
+        return requiredFieldsPresent;
     }
 }
