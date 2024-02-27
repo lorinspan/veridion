@@ -1,5 +1,8 @@
 package com.veridion.assignment.csv;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -7,10 +10,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CSVReader {
-    private String filePath;
+    private static CSVReader instance;
+    private static final Logger LOGGER = LoggerFactory.getLogger(CSVReader.class);
+    private final String filePath;
+    private final List<String> urls;
 
-    public CSVReader(String filePath) {
+    private CSVReader(String filePath) {
         this.filePath = filePath;
+        this.urls = readURLsFromCSV();
+    }
+
+    public static synchronized CSVReader getInstance(String filePath) {
+        if (instance == null) {
+            instance = new CSVReader(filePath);
+        }
+        return instance;
+    }
+
+    public static synchronized CSVReader getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException("CSVReader has not been initialized with a file path.");
+        }
+        return instance;
     }
 
     public List<String> readURLsFromCSV() {
@@ -33,9 +54,13 @@ public class CSVReader {
                     }
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ioException) {
+            LOGGER.error("An error has occurred while reading the CSV file: " + ioException.getMessage() + ".");
         }
+        return urls;
+    }
+
+    public List<String> getUrls() {
         return urls;
     }
 }
