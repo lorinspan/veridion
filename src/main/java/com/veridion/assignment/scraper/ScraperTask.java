@@ -1,5 +1,6 @@
 package com.veridion.assignment.scraper;
 
+import com.veridion.assignment.csv.CSVReader;
 import com.veridion.assignment.model.Company;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -8,12 +9,14 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,6 +35,17 @@ public class ScraperTask implements Callable<Void> {
     // Can probably reduce this time in order to get faster times at the cost of accuracy. Less time given to site to load -> less accuracy.
     private static final Duration PAGE_LOAD_TIMEOUT_SECONDS = Duration.ofSeconds(20);
     private final String url;
+
+    protected static final AtomicInteger successfulCrawls = new AtomicInteger(0);
+    protected static final AtomicInteger phoneNumbersFound = new AtomicInteger(0);
+    protected static final AtomicInteger socialMediaLinksFound = new AtomicInteger(0);
+    protected static final AtomicInteger addressesFound = new AtomicInteger(0);
+    private static final long startTime;
+
+    static {
+        startTime = System.currentTimeMillis();
+    }
+
 
     public ScraperTask(String url) {
         this.url = url;
@@ -73,11 +87,12 @@ public class ScraperTask implements Callable<Void> {
                 mergeCompanyInfo(company, contactCompany);
             }
 
+            successfulCrawls.incrementAndGet();
             // Output the scraped data
-            LOGGER.info("Company extracted from URL: " + company.getUrl() + " has phone number(s): " + company.getPhoneNumbers() + ", social media link(s): " + company.getSocialMediaLinks() + " and the address: " + company.getAddress() + ".");
 
+            company.print();
         } catch (Exception exception) {
-            LOGGER.error("Could not open URL: " + url);
+            LOGGER.error("Could not open URL: " + url + ".");
         } finally {
             if (driver != null) {
                 driver.quit();
@@ -153,14 +168,15 @@ public class ScraperTask implements Callable<Void> {
         Set<String> uniqueNumbers = new HashSet<>();
 
         // Define the regex pattern for phone numbers
-        String regex = PHONE_NUMBER_REGEX;
-        Pattern pattern = Pattern.compile(regex);
+        Pattern pattern = Pattern.compile(PHONE_NUMBER_REGEX);
 
         // Get the entire page source
         String pageSource = driver.getPageSource();
 
         // Find phone numbers using regex
         findUniqueItems(pageSource, pattern, uniqueNumbers, phoneNumberString);
+
+        incrementDatapointFound(phoneNumbersFound, phoneNumberString);
 
         return phoneNumberString.toString();
     }
@@ -176,6 +192,8 @@ public class ScraperTask implements Callable<Void> {
             addUniqueElement(href, uniqueLinks, socialMediaLinksString);
         }
 
+        incrementDatapointFound(socialMediaLinksFound, socialMediaLinksString);
+
         return socialMediaLinksString.toString();
     }
 
@@ -190,16 +208,28 @@ public class ScraperTask implements Callable<Void> {
             addUniqueElement(address, uniqueAddresses, addressesString);
         }
 
+        incrementDatapointFound(addressesFound, addressesString);
+
         return addressesString.toString();
     }
 
-    private void addUniqueElement(String element, Set<String> uniqueElements, StringBuilder stringBuilder) {
-        if (!uniqueElements.contains(element)) {
-            uniqueElements.add(element);
-            stringBuilder.append(element);
-            stringBuilder.append(", ");
+    private void incrementDatapointFound(AtomicInteger atomicInteger, StringBuilder stringBuilder) {
+        if(StringUtils.hasLength(stringBuilder.toString())) {
+            atomicInteger.incrementAndGet();
         }
     }
+
+    private void addUniqueElement(String element, Set<String> uniqueElements, StringBuilder stringBuilder) {
+        if (StringUtils.hasLength(element) && !uniqueElements.contains(element)) {
+            if (!stringBuilder.isEmpty()) {
+                // Add comma and space if the StringBuilder is not empty
+                stringBuilder.append(", ");
+            }
+            uniqueElements.add(element);
+            stringBuilder.append(element);
+        }
+    }
+
 
     private void findUniqueItems(String pageSource, Pattern pattern, Set<String> uniqueItems, StringBuilder stringBuilder) {
         Matcher matcher = pattern.matcher(pageSource);
@@ -207,5 +237,21 @@ public class ScraperTask implements Callable<Void> {
             String item = matcher.group();
             addUniqueElement(item, uniqueItems, stringBuilder);
         }
+    }
+
+    protected static void printDataAnalysis() {
+        final long endTime = System.currentTimeMillis();
+        LOGGER.info("Calculated in: " + (endTime - startTime) / 1000 + " seconds." );
+        try {
+        List<String> urls = CSVReader.getInstance().getUrls();
+        LOGGER.info("Website crawl coverage: " + ScraperTask.successfulCrawls + " out of " + urls.size() + ". Percentage: " + getCoverage(ScraperTask.successfulCrawls, urls) + ".");
+        LOGGER.info("Datapoints extracted: " + ScraperTask.phoneNumbersFound + " (" + getCoverage(ScraperTask.phoneNumbersFound, urls) + ") phone numbers, " + ScraperTask.socialMediaLinksFound + " (" + getCoverage(ScraperTask.socialMediaLinksFound, urls) + ") social media links and " + ScraperTask.addressesFound + " (" + getCoverage(ScraperTask.addressesFound, urls) + ") addresses found.");
+        } catch (IllegalStateException illegalStateException) {
+            LOGGER.error("An error has occurred while accessing CSVReader singleton: " + illegalStateException.getMessage());
+        }
+    }
+
+    private static String getCoverage(AtomicInteger atomicInteger, List<String> urls) {
+        return String.format("%.2f", atomicInteger.get() / (double) urls.size() * 100) + "%";
     }
 }
