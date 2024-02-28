@@ -1,6 +1,6 @@
 package com.veridion.assignment.scraper;
 
-import com.veridion.assignment.csv.CSVReader;
+import com.veridion.assignment.csv.CSVReaderService;
 import com.veridion.assignment.model.Company;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -9,6 +9,7 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -19,7 +20,8 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class ScraperTask implements Callable<Void> {
+@Service
+public class ScraperService implements Callable<Void> {
     private static final String CHROME_DRIVER = "webdriver.chrome.driver";
     private static final String CHROME_DRIVER_PATH = "C:\\Users\\lorin\\IdeaProjects\\chrome-win64\\chromedriver.exe";
     private static final String CHROME_PATH = "C:\\Users\\lorin\\IdeaProjects\\chrome-win64\\chrome.exe";
@@ -29,7 +31,7 @@ public class ScraperTask implements Callable<Void> {
     private static final String ADDRESS_XPATH = "//a[contains(@href, 'maps.google.com')]";
     private static final String CONTACT_SELECTOR = "a[href*='contact']";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ScraperTask.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScraperService.class);
     // Can probably reduce this time in order to get faster times at the cost of accuracy. Less time given to site to load -> less accuracy.
     private static final Duration PAGE_LOAD_TIMEOUT_SECONDS = Duration.ofSeconds(20);
     private final String url;
@@ -38,15 +40,13 @@ public class ScraperTask implements Callable<Void> {
     protected static final AtomicInteger phoneNumbersFound = new AtomicInteger(0);
     protected static final AtomicInteger socialMediaLinksFound = new AtomicInteger(0);
     protected static final AtomicInteger addressesFound = new AtomicInteger(0);
-    private static final long startTime;
-
-    static {
-        startTime = System.currentTimeMillis();
-    }
     private static final List<Company> companies = Collections.synchronizedList(new ArrayList<>());
 
+    private ScraperService() {
+        this.url = null;
+    }
 
-    public ScraperTask(String url) {
+    public ScraperService(String url) {
         this.url = url;
     }
 
@@ -240,16 +240,24 @@ public class ScraperTask implements Callable<Void> {
         }
     }
 
-    protected static void printDataAnalysis() {
-        final long endTime = System.currentTimeMillis();
-        LOGGER.info("Calculated in: " + (endTime - startTime) / 1000 + " seconds." );
+    public static void printDataAnalysis(long startTime) {
+        long endTime = System.currentTimeMillis();
+        LOGGER.info("Calculated in: " + String.format("%.3f", (endTime - startTime) / 1000.0) + " seconds.");
         try {
-        List<String> urls = CSVReader.getInstance().getUrls();
-        LOGGER.info("Website crawl coverage: " + ScraperTask.successfulCrawls + " out of " + urls.size() + ". Percentage: " + getCoverage(ScraperTask.successfulCrawls, urls) + ".");
-        LOGGER.info("Datapoints extracted: " + ScraperTask.phoneNumbersFound + " (" + getCoverage(ScraperTask.phoneNumbersFound, urls) + ") phone numbers, " + ScraperTask.socialMediaLinksFound + " (" + getCoverage(ScraperTask.socialMediaLinksFound, urls) + ") social media links and " + ScraperTask.addressesFound + " (" + getCoverage(ScraperTask.addressesFound, urls) + ") addresses found.");
+        List<String> urls = CSVReaderService.getInstance().getUrls();
+        LOGGER.info("Website crawl coverage: " + ScraperService.successfulCrawls + " out of " + urls.size() + ". Percentage: " + getCoverage(ScraperService.successfulCrawls, urls) + ".");
+        LOGGER.info("Datapoints extracted: " + ScraperService.phoneNumbersFound + " (" + getCoverage(ScraperService.phoneNumbersFound, urls) + ") phone numbers, " + ScraperService.socialMediaLinksFound + " (" + getCoverage(ScraperService.socialMediaLinksFound, urls) + ") social media links and " + ScraperService.addressesFound + " (" + getCoverage(ScraperService.addressesFound, urls) + ") addresses found.");
         } catch (IllegalStateException illegalStateException) {
             LOGGER.error("An error has occurred while accessing CSVReader singleton: " + illegalStateException.getMessage());
         }
+    }
+
+    public static void resetCounters() {
+        companies.clear();
+        ScraperService.successfulCrawls.set(0);
+        ScraperService.phoneNumbersFound.set(0);
+        ScraperService.socialMediaLinksFound.set(0);
+        ScraperService.addressesFound.set(0);
     }
 
     private static String getCoverage(AtomicInteger atomicInteger, List<String> urls) {
@@ -260,7 +268,7 @@ public class ScraperTask implements Callable<Void> {
         companies.add(company);
     }
 
-    protected static List<Company> getCompanies() {
+    public static List<Company> getCompanies() {
         return companies;
     }
 }
