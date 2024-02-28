@@ -1,5 +1,6 @@
 package com.veridion.assignment.csv;
 
+import com.veridion.assignment.algolia.AlgoliaService;
 import com.veridion.assignment.model.Company;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class CSVWriter {
+    private static final AlgoliaService algoliaService = new AlgoliaService();
     private static final Logger LOGGER = LoggerFactory.getLogger(CSVWriter.class);
     private static final String MERGE_CSV_FILE = "C:\\Users\\lorin\\IdeaProjects\\assignment\\src\\main\\resources\\merge-websites\\sample-websites-company-names.csv";
     private static final String CSV_FILE_PATH_OUTPUT = "C:\\Users\\lorin\\IdeaProjects\\assignment\\src\\main\\resources\\output-websites\\companies.csv";

@@ -3,19 +3,17 @@ package com.veridion.assignment.model;
 import jakarta.persistence.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.annotation.Id;
 import org.springframework.util.StringUtils;
+
+import java.io.Serializable;
 
 @Entity
 @Table(name = "companies")
-public class Company {
+public class Company implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Company.class);
 
-    @jakarta.persistence.Id
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Column(name = "commercialName")
     private String commercialName;
 
@@ -40,12 +38,13 @@ public class Company {
     // Constructors, getters, and setters
 
     // Default constructor
-    public Company() {
-    }
+    public Company() {}
 
     // Constructor with parameters
-    public Company(String name, String phoneNumbers, String socialMediaLinks, String address, String url) {
-        this.commercialName = name;
+    public Company(String commercialName, String legalName, String allAvailableNames, String phoneNumbers, String socialMediaLinks, String address, String url) {
+        this.commercialName = commercialName;
+        this.legalName = legalName;
+        this.allAvailableNames = allAvailableNames;
         this.phoneNumbers = phoneNumbers;
         this.socialMediaLinks = socialMediaLinks;
         this.address = address;
@@ -53,14 +52,6 @@ public class Company {
     }
 
     // Getters and setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getCommercialName() {
         return commercialName;
     }
@@ -139,5 +130,13 @@ public class Company {
 
     public void setAllAvailableNames(String allAvailableNames) {
         this.allAvailableNames = allAvailableNames;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getId() {
+        return id;
     }
 }

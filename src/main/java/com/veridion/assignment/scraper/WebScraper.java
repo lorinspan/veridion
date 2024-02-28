@@ -32,4 +32,16 @@ public class WebScraper {
 /*
     TODO: https://soleadify.notion.site/Software-Engineer-Assignment-049905cff8e24ce3bfbc29e8312127ec
 
+    TODO:
+        - make logic for rest api in angular with searches and shit
+        - clean up more code
+
+    ### The querying (final) part  🚀
+
+    Build a REST API that accepts as input the name, website, phone number and facebook profile of a company and
+     uses these inputs to **match & return a single (best matching) company profile.**
+
+    **The goal of this coding part is to come up with a matching algorithm that will help you achieve a high match
+     rate against your stored company profiles.** *Note: the match rate is the number of entries you are able to
+     match and return from the available 1000 company profiles that you put together in the previous step.*
  */

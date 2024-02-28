@@ -121,4 +121,8 @@ public class CSVReader {
         }
         return null;
     }
+
+    public String getFilePath() {
+        return filePath;
+    }
 }
