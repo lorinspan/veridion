@@ -1,24 +1,40 @@
-package com.veridion.assignment.api;
+package com.veridion.assignment.controller;
 
 import com.veridion.assignment.model.Company;
-import com.veridion.assignment.response.MatchResponse;
 import com.veridion.assignment.service.CompanyService;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api/company")
 public class CompanyController {
-    private CompanyService companyService;
+    private final CompanyService companyService;
+
+    public CompanyController(CompanyService companyService) {
+        this.companyService = companyService;
+    }
 
     @PostMapping("/match")
-    public ResponseEntity<MatchResponse> matchCompany(@RequestBody Company company) {
+    public ResponseEntity<?> matchCompany(@RequestBody Company company) {
         return companyService.findBestMatch(company);
     }
 
-    // Inner class for custom response object
+    @PostMapping("/merge")
+    public ResponseEntity<Resource> mergeCSV(@RequestParam("file") MultipartFile multipartFile) {
+        File file = companyService.convertMultipartFileToFile(multipartFile);
 
+        return companyService.mergeCSV(file);
+    }
+
+    @PostMapping("/crawl")
+    public ResponseEntity<Resource> crawlCSV(@RequestParam("file") MultipartFile multipartFile) {
+        File file = companyService.convertMultipartFileToFile(multipartFile);
+
+        return companyService.crawlCSV(file);
+    }
 }
