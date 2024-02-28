@@ -13,7 +13,7 @@ public class Company implements Serializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Company.class);
 
     @Id
-    private Long id;
+    private Long objectID;
     @Column(name = "commercialName")
     private String commercialName;
 
@@ -132,11 +132,11 @@ public class Company implements Serializable {
         this.allAvailableNames = allAvailableNames;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setObjectID(Long id) {
+        this.objectID = id;
     }
 
-    public Long getId() {
-        return id;
+    public Long getObjectID() {
+        return objectID;
     }
 }
