@@ -1,6 +1,6 @@
 package com.veridion.assignment.executors;
 
-import com.veridion.assignment.csv.CSVReader;
+import com.veridion.assignment.csv.CSVReaderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,7 @@ public class ExecutorServiceManager {
     private static ExecutorService executor;
 
     public static ExecutorService getExecutorService() {
-        int maxThreads = calculateMaxThreads(CSVReader.getInstance().getUrls().size());
+        int maxThreads = calculateMaxThreads(CSVReaderService.getInstance().getUrls().size());
 
         if (executor == null || executor.isShutdown()) {
             executor = Executors.newFixedThreadPool(maxThreads);
