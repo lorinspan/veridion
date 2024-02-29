@@ -64,18 +64,16 @@ public class CSVReaderService {
     }
 
     public static List<String> readURLsFromCSV(File file) {
+        LOGGER.debug("Reading URLs from file: " + file.getPath() + ".");
         List<String> urls = new ArrayList<>();
         String line;
         String cvsSplitBy = ",";
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             while ((line = br.readLine()) != null) {
-                // use comma as separator
                 String[] urlsArray = line.split(cvsSplitBy);
                 for (String url : urlsArray) {
-                    // Skip if the entry is "domain"
                     if (!url.trim().equalsIgnoreCase("domain")) {
-                        // Check if the URL does not start with "https://" or "http://"
                         if (!url.trim().startsWith("https://") && !url.trim().startsWith("http://")) {
                             url = "https://" + url.trim();
                         }
@@ -102,34 +100,28 @@ public class CSVReaderService {
     }
 
     public static ArrayList<Company> getCompaniesFromCSV(File file) {
+        LOGGER.debug("Extracting companies from the CSV file.");
         ArrayList<Company> companies = new ArrayList<>();
         String line;
         String cvsSplitBy = ",";
 
-        // Map to store the index of each header
         Map<String, Integer> headerIndexMap = new HashMap<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            // Read the header line
             String headerLine = br.readLine();
             if (headerLine != null) {
-                // Split the header line to get individual headers
                 String[] headers = headerLine.split(cvsSplitBy);
 
-                // Populate the header index map
                 for (int i = 0; i < headers.length; i++) {
                     headerIndexMap.put(headers[i], i);
                 }
             }
 
-            // Read data lines
             while ((line = br.readLine()) != null) {
                 String[] fields = parseCSVLine(line);
 
-                // Create a Company object
                 Company company = new Company();
 
-                // Assign values based on headers
                 company.setCommercialName(getValueForHeader(fields, headerIndexMap, "company_commercial_name"));
                 company.setLegalName(getValueForHeader(fields, headerIndexMap, "company_legal_name"));
                 company.setAllAvailableNames(getValueForHeader(fields, headerIndexMap, "company_all_available_names"));
@@ -138,7 +130,6 @@ public class CSVReaderService {
                 company.setAddress(getValueForHeader(fields, headerIndexMap, "addresses"));
                 company.setUrl(getValueForHeader(fields, headerIndexMap, "domain"));
 
-                // Add the company to the list
                 companies.add(company);
             }
         } catch (IOException ioException) {
@@ -147,7 +138,6 @@ public class CSVReaderService {
         return companies;
     }
 
-    // Helper method to get value based on header
     private static String getValueForHeader(String[] fields, Map<String, Integer> headerIndexMap, String header) {
         Integer index = headerIndexMap.get(header);
         if (index != null && index < fields.length) {
@@ -156,8 +146,6 @@ public class CSVReaderService {
         return null;
     }
 
-
-    // Helper method to parse CSV line properly, handling quoted strings
     private static String[] parseCSVLine(String line) {
         List<String> fields = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
@@ -168,25 +156,14 @@ public class CSVReaderService {
                 inQuotes = !inQuotes;
             } else if (c == ',' && !inQuotes) {
                 fields.add(sb.toString());
-                sb.setLength(0); // Clear the StringBuilder
+                sb.setLength(0);
             } else {
                 sb.append(c);
             }
         }
 
-        // Add the last field
         fields.add(sb.toString());
 
         return fields.toArray(new String[0]);
-    }
-
-
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public void setFilePath(String filePath) {
-        CSVReaderService.filePath = filePath;
     }
 }

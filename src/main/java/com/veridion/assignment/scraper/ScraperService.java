@@ -1,6 +1,8 @@
 package com.veridion.assignment.scraper;
 
 import com.veridion.assignment.model.Company;
+import com.veridion.assignment.model.CompanyUtil;
+import com.veridion.assignment.utils.Utils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -15,7 +17,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,25 +55,21 @@ public class ScraperService implements Callable<Void> {
     public Void call() {
         WebDriver driver = null;
         try {
-            // Set the path to your ChromeDriver executable
             System.setProperty(CHROME_DRIVER, CHROME_DRIVER_PATH);
 
             ChromeOptions chromeOptions = new ChromeOptions();
-            chromeOptions.addArguments("--headless"); // Enable headless mode
+            chromeOptions.addArguments("--headless");
             chromeOptions.setBinary(CHROME_PATH);
             driver = new ChromeDriver(chromeOptions);
 
-            // Set page load timeout
             driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT_SECONDS);
 
             if (StringUtils.hasLength(url) && !url.trim().startsWith("https://") && !url.trim().startsWith("http://")) {
                 url = "https://" + url.trim();
             }
 
-            // Navigate to the URL
             driver.get(url);
 
-            // Scrape data from the main page
             Company company = scrapeCompanyInfo(driver);
             company.setUrl(url);
 
@@ -90,11 +87,10 @@ public class ScraperService implements Callable<Void> {
             }
 
             successfulCrawls.incrementAndGet();
-            // Output the scraped data
 
             addCompany(company);
 
-            company.print();
+            CompanyUtil.printCompany(company);
 
         } catch (Exception exception) {
             LOGGER.error("Could not open URL: " + url + ".");
@@ -113,55 +109,22 @@ public class ScraperService implements Callable<Void> {
             String href = link.getAttribute(HREF);
             if (href != null && href.contains("contact")) {
                 driver.get(href);
-                break; // Stop after visiting the first contact link
+                break;
             }
         }
     }
 
     private void mergeCompanyInfo(Company mainCompany, Company contactCompany) {
-        // Merge data from the contact page into the main company object
-        mergeField(mainCompany::setPhoneNumbers, mainCompany.getPhoneNumbers(), contactCompany.getPhoneNumbers());
-        mergeField(mainCompany::setAddress, mainCompany.getAddress(), contactCompany.getAddress());
-        mergeField(mainCompany::setSocialMediaLinks, mainCompany.getSocialMediaLinks(), contactCompany.getSocialMediaLinks());
+        Utils.mergeField(mainCompany::setPhoneNumbers, mainCompany.getPhoneNumbers(), contactCompany.getPhoneNumbers());
+        Utils.mergeField(mainCompany::setAddress, mainCompany.getAddress(), contactCompany.getAddress());
+        Utils.mergeField(mainCompany::setSocialMediaLinks, mainCompany.getSocialMediaLinks(), contactCompany.getSocialMediaLinks());
     }
-
-    private void mergeField(Consumer<String> setter, String mainField, String contactField) {
-        // If the main company field is empty, set it to the contact company's field
-        if (mainField.isEmpty()) {
-            setter.accept(contactField);
-        } else if (!contactField.isEmpty()) {
-            // Split both field strings by comma and trim each entry
-            String[] mainEntries = mainField.split(",");
-            String[] contactEntries = contactField.split(",");
-
-            // Merge contact entries into the main company if they don't already exist
-            for (String contactEntry : contactEntries) {
-                String trimmedContactEntry = contactEntry.trim();
-                boolean exists = false;
-                for (String mainEntry : mainEntries) {
-                    if (mainEntry.trim().equalsIgnoreCase(trimmedContactEntry)) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
-                    setter.accept(mainField + ", " + trimmedContactEntry);
-                }
-            }
-        }
-    }
-
 
     private Company scrapeCompanyInfo(WebDriver driver) {
         Company company = new Company();
 
-        // Extract phone numbers
         company.setPhoneNumbers(findPhoneNumbers(driver));
-
-        // Extract social media links
         company.setSocialMediaLinks(findSocialMediaLinks(driver));
-
-        // Extract address/location
         company.setAddress(findAddresses(driver));
 
         return company;
@@ -171,13 +134,10 @@ public class ScraperService implements Callable<Void> {
         StringBuilder phoneNumberString = new StringBuilder();
         Set<String> uniqueNumbers = new HashSet<>();
 
-        // Define the regex pattern for phone numbers
         Pattern pattern = Pattern.compile(PHONE_NUMBER_REGEX);
 
-        // Get the entire page source
         String pageSource = driver.getPageSource();
 
-        // Find phone numbers using regex
         findUniqueItems(pageSource, pattern, uniqueNumbers, phoneNumberString);
 
         incrementDatapointFound(phoneNumbersFound, phoneNumberString);
@@ -193,7 +153,7 @@ public class ScraperService implements Callable<Void> {
 
         for (WebElement link : socialMediaLinks) {
             String href = link.getAttribute(HREF);
-            addUniqueElement(href, uniqueLinks, socialMediaLinksString);
+            Utils.addUniqueElement(href, uniqueLinks, socialMediaLinksString);
         }
 
         incrementDatapointFound(socialMediaLinksFound, socialMediaLinksString);
@@ -209,7 +169,7 @@ public class ScraperService implements Callable<Void> {
 
         for (WebElement addressElement : addressElements) {
             String address = addressElement.getText().trim();
-            addUniqueElement(address, uniqueAddresses, addressesString);
+            Utils.addUniqueElement(address, uniqueAddresses, addressesString);
         }
 
         incrementDatapointFound(addressesFound, addressesString);
@@ -223,23 +183,11 @@ public class ScraperService implements Callable<Void> {
         }
     }
 
-    private void addUniqueElement(String element, Set<String> uniqueElements, StringBuilder stringBuilder) {
-        if (StringUtils.hasLength(element) && !uniqueElements.contains(element)) {
-            if (!stringBuilder.isEmpty()) {
-                // Add comma and space if the StringBuilder is not empty
-                stringBuilder.append(", ");
-            }
-            uniqueElements.add(element);
-            stringBuilder.append(element);
-        }
-    }
-
-
     private void findUniqueItems(String pageSource, Pattern pattern, Set<String> uniqueItems, StringBuilder stringBuilder) {
         Matcher matcher = pattern.matcher(pageSource);
         while (matcher.find()) {
             String item = matcher.group();
-            addUniqueElement(item, uniqueItems, stringBuilder);
+            Utils.addUniqueElement(item, uniqueItems, stringBuilder);
         }
     }
 

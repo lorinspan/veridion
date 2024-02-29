@@ -11,6 +11,8 @@ import com.veridion.assignment.model.Company;
 import com.veridion.assignment.model.CompanyUtil;
 import com.veridion.assignment.model.MatchingScore;
 import com.veridion.assignment.scraper.ScraperService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -21,9 +23,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +32,11 @@ import java.util.stream.Collectors;
 
 @Service
 public class CompanyService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompanyService.class);
+    private static final double EXACT_MATCH_WEIGHT = 1.0;
+    private static final double STARTS_WITH_WEIGHT = 0.85;
+    private static final double CONTAINS_SUBSTRING_WEIGHT = 0.75;
+    private static final double LEVENSHTEIN_WEIGHT = 0.5;
     private final SearchClient client = DefaultSearchClient.create("K7WMA52L67", "0f0a0719ba468a4e2f8ea68b43a288a5");
     private final SearchIndex<Company> index = client.initIndex("test_index", Company.class);
     private final AlgoliaService algoliaService;
@@ -77,12 +82,10 @@ public class CompanyService {
         CSVReaderService csvReader = CSVReaderService.getInstance(file);
         ExecutorService executor = ExecutorServiceManager.getExecutorService();
 
-        // Create a list of CompletableFuture to hold the scraping tasks
         List<CompletableFuture<Void>> futures = csvReader.getUrls().stream()
                 .map(url -> CompletableFuture.runAsync(() -> new ScraperService(url).call(), executor))
                 .toList();
 
-        // Wait for all scraping tasks to complete
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 
         return getResourceResponseEntity(startTime, executor, allFutures);
@@ -96,29 +99,21 @@ public class CompanyService {
         return new ResponseEntity<>(resource, HttpStatus.OK);
     }
 
-
     public File convertMultipartFileToFile(MultipartFile multipartFile) {
+        LOGGER.debug("Converting multipart file to file in convertMultipartFileToFile().");
         String fileName = (StringUtils.hasLength(multipartFile.getOriginalFilename())) ? multipartFile.getOriginalFilename() : "companies";
         File file = new File(fileName);
-        FileOutputStream fos = null;
+        FileOutputStream fos;
         try {
             fos = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        try {
             fos.write(multipartFile.getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        try {
             fos.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception exception) {
+            LOGGER.error("An error has occurred while converting multipartfile to file: " + exception.getMessage() + ".");
         }
+
         return file;
     }
-
 
     public ResponseEntity<Map<String, Object>> findBestMatch(Company inputCompany) {
         List<Company> companies = CSVReaderService.getCompaniesFromCSV(CSVWriterService.MERGE_CSV_FILE);
@@ -132,10 +127,8 @@ public class CompanyService {
             matchingScores.add(new MatchingScore(company, score));
         }
 
-        // Sort the matching scores in descending order
         matchingScores.sort(Comparator.comparingDouble(MatchingScore::getScore).reversed());
 
-        // Get the top 10 companies with their matching scores
         List<Map<String, Object>> top10CompaniesWithScores = matchingScores.stream()
                 .limit(10)
                 .map(matchingScore -> {
@@ -157,11 +150,6 @@ public class CompanyService {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(responseMap);
     }
-
-    private static final double EXACT_MATCH_WEIGHT = 1.0;
-    private static final double STARTS_WITH_WEIGHT = 0.85;
-    private static final double CONTAINS_SUBSTRING_WEIGHT = 0.75;
-    private static final double LEVENSHTEIN_WEIGHT = 0.5;
 
     private double calculateMatchScore(Company inputCompany, Company targetCompany) {
         double score = 0.0;
@@ -185,7 +173,6 @@ public class CompanyService {
         if (targetAttribute.equalsIgnoreCase(inputAttribute)) {
             score += EXACT_MATCH_WEIGHT * weight;
         } else if (targetAttribute.toLowerCase().startsWith(inputAttribute.toLowerCase())) {
-            // Give higher weight when the target attribute starts with the input attribute
             score += STARTS_WITH_WEIGHT * weight;
         } else if (targetAttribute.toLowerCase().contains(inputAttribute.toLowerCase())) {
             score += CONTAINS_SUBSTRING_WEIGHT * weight;
@@ -196,7 +183,6 @@ public class CompanyService {
         }
         return score;
     }
-
 
     private int calculateLevenshteinDistance(String word1, String word2) {
         int[][] dp = new int[word1.length() + 1][word2.length() + 1];
@@ -217,5 +203,4 @@ public class CompanyService {
 
         return dp[word1.length()][word2.length()];
     }
-
 }

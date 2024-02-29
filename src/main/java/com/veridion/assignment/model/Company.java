@@ -1,46 +1,27 @@
 package com.veridion.assignment.model;
 
-import jakarta.persistence.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
 
-@Entity
-@Table(name = "companies")
 public class Company implements Serializable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Company.class);
-
-    @Id
     private Long objectID;
-    @Column(name = "commercialName")
     private String commercialName;
 
-    @Column(name = "legalName")
     private String legalName;
 
-    @Column(name = "allAvailableNames")
     private String allAvailableNames;
 
-    @Column(name = "phoneNumber")
     private String phoneNumbers;
 
-    @Column(name = "socialMediaLinks")
     private String socialMediaLinks;
 
-    @Column(name = "address")
     private String address;
 
-    @Column(name = "url") // New column for URL
     private String url;
 
-    // Constructors, getters, and setters
-
-    // Default constructor
     public Company() {}
 
-    // Constructor with parameters
     public Company(String commercialName, String legalName, String allAvailableNames, String phoneNumbers, String socialMediaLinks, String address, String url) {
         this.commercialName = commercialName;
         this.legalName = legalName;
@@ -51,7 +32,6 @@ public class Company implements Serializable {
         this.url = url;
     }
 
-    // Getters and setters
     public String getCommercialName() {
         return commercialName;
     }
@@ -100,22 +80,6 @@ public class Company implements Serializable {
         return requiredFieldsPresent;
     }
 
-    public void print() {
-        String phoneNumbers = this.getPhoneNumbers();
-        String socialMediaLinks = this.getSocialMediaLinks();
-        String address = this.getAddress();
-
-        if (StringUtils.hasLength(phoneNumbers) || StringUtils.hasLength(socialMediaLinks) || StringUtils.hasLength(address)) {
-            LOGGER.info("Company extracted from URL: " + this.getUrl() +
-                    (StringUtils.hasLength(phoneNumbers) ? " has phone number(s): " + phoneNumbers : "") +
-                    (StringUtils.hasLength(socialMediaLinks) ? ", social media link(s): " + socialMediaLinks : "") +
-                    (StringUtils.hasLength(address) ? ", address: " + address : "") +
-                    ".");
-        } else {
-            LOGGER.info("Company extracted from URL: " + this.getUrl() + " - no datapoints could be extracted.");
-        }
-    }
-
     public String getLegalName() {
         return legalName;
     }
@@ -130,13 +94,5 @@ public class Company implements Serializable {
 
     public void setAllAvailableNames(String allAvailableNames) {
         this.allAvailableNames = allAvailableNames;
-    }
-
-    public void setObjectID(Long id) {
-        this.objectID = id;
-    }
-
-    public Long getObjectID() {
-        return objectID;
     }
 }

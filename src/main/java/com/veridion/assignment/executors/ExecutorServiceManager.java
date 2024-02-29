@@ -11,6 +11,7 @@ public class ExecutorServiceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorServiceManager.class);
     private static final int MIN_THREADS = 6;
     private static final int MAX_THREADS = 16;
+    private static final int RATIO_VALUE = 100;
 
     private static ExecutorService executor;
 
@@ -35,12 +36,9 @@ public class ExecutorServiceManager {
     }
 
     private static int calculateMaxThreads(int numberOfURLs) {
-        double ratio = (double) numberOfURLs / 100;
+        double ratio = (double) numberOfURLs / RATIO_VALUE;
 
-        // Interpolate between MIN_THREADS and MAX_THREADS using the ratio
         int maxThreads = (int) (MIN_THREADS + ratio * (MAX_THREADS - MIN_THREADS));
-
-        // Ensure that maxThreads is within the range of MIN_THREADS and MAX_THREADS
         maxThreads = Math.min(Math.max(maxThreads, MIN_THREADS), MAX_THREADS);
 
         return maxThreads;
