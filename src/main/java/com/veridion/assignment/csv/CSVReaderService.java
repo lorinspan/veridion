@@ -35,7 +35,7 @@ public class CSVReaderService {
         if (instance == null) {
             instance = new CSVReaderService(filePath);
         } else {
-            filePath = filePath;
+            CSVReaderService.filePath = filePath;
             urls = readURLsFromCSV();
         }
 

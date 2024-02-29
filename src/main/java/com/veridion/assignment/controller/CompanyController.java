@@ -4,6 +4,7 @@ import com.veridion.assignment.model.Company;
 import com.veridion.assignment.service.CompanyService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,9 +33,15 @@ public class CompanyController {
     }
 
     @PostMapping("/crawl")
-    public ResponseEntity<Resource> crawlCSV(@RequestParam("file") MultipartFile multipartFile) {
-        File file = companyService.convertMultipartFileToFile(multipartFile);
-
-        return companyService.crawlCSV(file);
+    public ResponseEntity<Resource> crawlCompany(@RequestParam(value = "file", required = false) MultipartFile multipartFile,
+                                                 @RequestParam(value = "url", required = false) String url) {
+        if (multipartFile != null) {
+            File file = companyService.convertMultipartFileToFile(multipartFile);
+            return companyService.crawlCSV(file);
+        } else if (StringUtils.hasLength(url)) {
+            return companyService.crawlCompany(url);
+        } else {
+            return ResponseEntity.badRequest().build(); // Handle invalid request
+        }
     }
 }

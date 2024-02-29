@@ -15,7 +15,10 @@ public class ExecutorServiceManager {
     private static ExecutorService executor;
 
     public static ExecutorService getExecutorService() {
-        int maxThreads = calculateMaxThreads(CSVReaderService.getInstance().getUrls().size());
+        int maxThreads = 1;
+        try {
+            maxThreads = calculateMaxThreads(CSVReaderService.getInstance().getUrls().size());
+        } catch (IllegalStateException ignored) {}
 
         if (executor == null || executor.isShutdown()) {
             executor = Executors.newFixedThreadPool(maxThreads);

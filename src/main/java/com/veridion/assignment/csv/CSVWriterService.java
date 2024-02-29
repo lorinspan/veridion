@@ -18,7 +18,7 @@ import java.util.*;
 public class CSVWriterService {
     private static final AlgoliaService algoliaService = new AlgoliaService();
     private static final Logger LOGGER = LoggerFactory.getLogger(CSVWriterService.class);
-    private static final String MERGE_CSV_FILE = "C:\\Users\\lorin\\IdeaProjects\\assignment\\src\\main\\resources\\merge-websites\\sample-websites-company-names.csv";
+    public static final String MERGE_CSV_FILE = "C:\\Users\\lorin\\IdeaProjects\\assignment\\src\\main\\resources\\merge-websites\\sample-websites-company-names.csv";
     private static final String CSV_FILE_PATH_OUTPUT = "C:\\Users\\lorin\\IdeaProjects\\assignment\\src\\main\\resources\\output-websites\\companies_";
     private static final String CSV_EXTENSION = ".csv";
 
@@ -142,9 +142,15 @@ public class CSVWriterService {
 
     private static String removeProtocol(String url) {
         // Remove "https://" and "http://" from anywhere in the string
-        return url.replaceAll("https?://", "");
-    }
+        url = url.replaceAll("https?://", "");
 
+        // Remove "www." from the beginning of the URL
+        url = url.replaceAll("^www\\.", "");
+
+        // Split the URL by "/", and take the first part which represents the domain
+        String[] parts = url.split("/");
+        return parts[0];
+    }
 
     private static String getCurrentFormattedDateTime() {
         SimpleDateFormat sdf = new SimpleDateFormat("HHmm_ddMMyyyy");

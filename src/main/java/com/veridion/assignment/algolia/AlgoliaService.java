@@ -70,7 +70,7 @@ public class AlgoliaService {
                     query.append(" "); // Add whitespace separator
                 }
             } catch (IllegalAccessException illegalAccessException) {
-                LOGGER.error("An error has occured while processing the company's fields: " + illegalAccessException.getMessage() + "."); // Handle the exception appropriately
+                LOGGER.error("An error has occurred while processing the company's fields: " + illegalAccessException.getMessage() + "."); // Handle the exception appropriately
             }
         }
 

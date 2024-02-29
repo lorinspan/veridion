@@ -8,11 +8,13 @@ import com.veridion.assignment.csv.CSVReaderService;
 import com.veridion.assignment.csv.CSVWriterService;
 import com.veridion.assignment.executors.ExecutorServiceManager;
 import com.veridion.assignment.model.Company;
-import com.veridion.assignment.response.MatchResponse;
+import com.veridion.assignment.model.CompanyUtil;
+import com.veridion.assignment.model.MatchingScore;
 import com.veridion.assignment.scraper.ScraperService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -22,10 +24,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 @Service
 public class CompanyService {
@@ -43,6 +46,31 @@ public class CompanyService {
         this.scraperService = scraperService;
     }
 
+    public ResponseEntity<Resource> crawlCompany(String url) {
+        long startTime = System.currentTimeMillis();
+        ScraperService.resetCounters();
+        ExecutorService executor = ExecutorServiceManager.getExecutorService();
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> new ScraperService(url).call(), executor);
+
+        return getResourceResponseEntity(startTime, executor, future);
+    }
+
+    private ResponseEntity<Resource> getResourceResponseEntity(long startTime, ExecutorService executor, CompletableFuture<Void> future) {
+        AtomicReference<ResponseEntity<Resource>> responseEntity = new AtomicReference<>();
+        future.thenRun(() -> {
+            executor.shutdown();
+
+            List<Company> companies = ScraperService.getCompanies();
+            File result = CSVWriterService.writeCompanies(companies);
+            ScraperService.printDataAnalysis(startTime, companies);
+
+            Resource resource = new FileSystemResource(result);
+            responseEntity.set(new ResponseEntity<>(resource, HttpStatus.OK));
+        }).join();
+
+        return responseEntity.get();
+    }
+
     public ResponseEntity<Resource> crawlCSV(File file) {
         long startTime = System.currentTimeMillis();
         ScraperService.resetCounters();
@@ -57,30 +85,7 @@ public class CompanyService {
         // Wait for all scraping tasks to complete
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 
-        AtomicReference<ResponseEntity<Resource>> responseEntity = new AtomicReference<>();
-        // Handle completion of all scraping tasks
-        allFutures.thenRun(() -> {
-            // Shutdown the executor after all tasks are complete
-            executor.shutdown();
-
-            // Perform post-scraping operations
-            List<Company> companies = ScraperService.getCompanies();
-            File result = CSVWriterService.writeCompanies(companies);
-            ScraperService.printDataAnalysis(startTime);
-
-            // Respond with the CSV file
-            Resource resource = new FileSystemResource(result);
-            responseEntity.set(new ResponseEntity<>(resource, HttpStatus.OK));
-
-            // Clean up temporary files if needed
-            // Note: Ensure proper error handling and resource management here
-
-            // You can also perform additional cleanup operations if needed
-
-        }).join(); // Block until all tasks are complete
-
-        // Return a temporary response until all tasks are complete
-        return responseEntity.get();
+        return getResourceResponseEntity(startTime, executor, allFutures);
     }
 
     public ResponseEntity<Resource> mergeCSV(File file) {
@@ -115,84 +120,102 @@ public class CompanyService {
     }
 
 
-    public ResponseEntity findBestMatch(Company inputCompany) {
-//      List<Company> companies = CSVReaderService.getCompaniesFromCSV(CSVReaderService.getInstance().getFilePath());
+    public ResponseEntity<Map<String, Object>> findBestMatch(Company inputCompany) {
+        List<Company> companies = CSVReaderService.getCompaniesFromCSV(CSVWriterService.MERGE_CSV_FILE);
 
-        if(inputCompany != null) {
-            return new ResponseEntity<>(algoliaService.findCompany(inputCompany), HttpStatus.OK);
-        }
+        Company algoliaCompany = algoliaService.findCompany(inputCompany);
 
-        List<Company> companies = algoliaService.findCompanies(inputCompany);
-
-        Company bestMatch = null;
-        double bestMatchScore = 0.0;
+        List<MatchingScore> matchingScores = new ArrayList<>();
 
         for (Company company : companies) {
             double score = calculateMatchScore(inputCompany, company);
-            if (score > bestMatchScore) {
-                bestMatchScore = score;
-                bestMatch = company;
-            }
+            matchingScores.add(new MatchingScore(company, score));
         }
 
+        // Sort the matching scores in descending order
+        matchingScores.sort(Comparator.comparingDouble(MatchingScore::getScore).reversed());
 
-        if(bestMatch != null) {
-            return new ResponseEntity<>(new MatchResponse(bestMatch, bestMatchScore), HttpStatus.OK);
-        }
-        return null;
+        // Get the top 10 companies with their matching scores
+        List<Map<String, Object>> top10CompaniesWithScores = matchingScores.stream()
+                .limit(10)
+                .map(matchingScore -> {
+                    Map<String, Object> companyMap = new HashMap<>();
+                    companyMap.put("company", matchingScore.getCompany());
+                    companyMap.put("score", matchingScore.getScore());
+                    return companyMap;
+                })
+                .collect(Collectors.toList());
+
+        Company bestMatch = !top10CompaniesWithScores.isEmpty() ? (Company) top10CompaniesWithScores.get(0).get("company") : null;
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("algolia_company", algoliaCompany);
+        responseMap.put("best_match_company", bestMatch);
+        responseMap.put("top_10_companies", !top10CompaniesWithScores.isEmpty() ? top10CompaniesWithScores : null);
+        responseMap.put("is_a_match", CompanyUtil.compareCompanies(bestMatch, algoliaCompany) ? "The matching algorithm has returned the same company as Algoria did!" : "The matching algorithm did not return the same company as Algoria did.");
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(responseMap);
     }
+
+    private static final double EXACT_MATCH_WEIGHT = 1.0;
+    private static final double STARTS_WITH_WEIGHT = 0.85;
+    private static final double CONTAINS_SUBSTRING_WEIGHT = 0.75;
+    private static final double LEVENSHTEIN_WEIGHT = 0.5;
 
     private double calculateMatchScore(Company inputCompany, Company targetCompany) {
         double score = 0.0;
 
-        // Compare attributes and assign scores based on matching criteria
-
-        // Commercial Name
-        if (StringUtils.hasLength(inputCompany.getCommercialName()) && StringUtils.hasLength(targetCompany.getCommercialName())) {
-            if (targetCompany.getCommercialName().equalsIgnoreCase(inputCompany.getCommercialName())) {
-                score += 1.0; // Exact match
-            } else if (targetCompany.getCommercialName().toLowerCase().contains(inputCompany.getCommercialName().toLowerCase())) {
-                score += 0.5; // Contains substring
-            }
-        }
-
-        // Legal Name
-        if (StringUtils.hasLength(inputCompany.getLegalName()) && StringUtils.hasLength(targetCompany.getLegalName())) {
-            if (targetCompany.getLegalName().equalsIgnoreCase(inputCompany.getLegalName())) {
-                score += 1.0; // Exact match
-            } else if (targetCompany.getLegalName().toLowerCase().contains(inputCompany.getLegalName().toLowerCase())) {
-                score += 0.5; // Contains substring
-            }
-        }
-
-        // Phone Numbers
-        if (StringUtils.hasLength(inputCompany.getPhoneNumbers()) && StringUtils.hasLength(targetCompany.getPhoneNumbers())) {
-            if (targetCompany.getPhoneNumbers().equals(inputCompany.getPhoneNumbers())) {
-                score += 1.0; // Exact match
-            } else if (targetCompany.getPhoneNumbers().contains(inputCompany.getPhoneNumbers())) {
-                score += 0.5; // Contains substring
-            }
-        }
-
-        // Social Media Links
-        if (StringUtils.hasLength(inputCompany.getSocialMediaLinks()) && StringUtils.hasLength(targetCompany.getSocialMediaLinks())) {
-            if (targetCompany.getSocialMediaLinks().equals(inputCompany.getSocialMediaLinks())) {
-                score += 1.0; // Exact match
-            } else if (targetCompany.getSocialMediaLinks().contains(inputCompany.getSocialMediaLinks())) {
-                score += 0.5; // Contains substring
-            }
-        }
-
-        // Address
-        if (StringUtils.hasLength(inputCompany.getAddress()) && StringUtils.hasLength(targetCompany.getAddress())) {
-            if (targetCompany.getAddress().equals(inputCompany.getAddress())) {
-                score += 1.0; // Exact match
-            } else if (targetCompany.getAddress().contains(inputCompany.getAddress())) {
-                score += 0.5; // Contains substring
-            }
-        }
+        score += compareAttributes(inputCompany.getUrl(), targetCompany.getUrl(), 2.0);
+        score += compareAttributes(inputCompany.getCommercialName(), targetCompany.getCommercialName(), 1.5);
+        score += compareAttributes(inputCompany.getLegalName(), targetCompany.getLegalName(), 1.5);
+        score += compareAttributes(inputCompany.getPhoneNumbers(), targetCompany.getPhoneNumbers(), 0.75);
+        score += compareAttributes(inputCompany.getSocialMediaLinks(), targetCompany.getSocialMediaLinks(), 1.0);
+        score += compareAttributes(inputCompany.getAddress(), targetCompany.getAddress(), 1.0);
 
         return score;
+    }
+
+    private double compareAttributes(String inputAttribute, String targetAttribute, double weight) {
+        if (!StringUtils.hasLength(inputAttribute) || !StringUtils.hasLength(targetAttribute)) {
+            return 0.0;
+        }
+
+        double score = 0.0;
+        if (targetAttribute.equalsIgnoreCase(inputAttribute)) {
+            score += EXACT_MATCH_WEIGHT * weight;
+        } else if (targetAttribute.toLowerCase().startsWith(inputAttribute.toLowerCase())) {
+            // Give higher weight when the target attribute starts with the input attribute
+            score += STARTS_WITH_WEIGHT * weight;
+        } else if (targetAttribute.toLowerCase().contains(inputAttribute.toLowerCase())) {
+            score += CONTAINS_SUBSTRING_WEIGHT * weight;
+        } else {
+            int distance = calculateLevenshteinDistance(inputAttribute.toLowerCase(), targetAttribute.toLowerCase());
+            double normalizedDistance = 1.0 - (double) distance / Math.max(inputAttribute.length(), targetAttribute.length());
+            score += normalizedDistance * LEVENSHTEIN_WEIGHT * weight;
+        }
+        return score;
+    }
+
+
+    private int calculateLevenshteinDistance(String word1, String word2) {
+        int[][] dp = new int[word1.length() + 1][word2.length() + 1];
+
+        for (int i = 0; i <= word1.length(); i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= word2.length(); j++) {
+            dp[0][j] = j;
+        }
+
+        for (int i = 1; i <= word1.length(); i++) {
+            for (int j = 1; j <= word2.length(); j++) {
+                int cost = (word1.charAt(i - 1) == word2.charAt(j - 1)) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1), dp[i - 1][j - 1] + cost);
+            }
+        }
+
+        return dp[word1.length()][word2.length()];
     }
 
 }

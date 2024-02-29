@@ -1,6 +1,5 @@
 package com.veridion.assignment.scraper;
 
-import com.veridion.assignment.csv.CSVReaderService;
 import com.veridion.assignment.model.Company;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -17,6 +16,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,7 +34,7 @@ public class ScraperService implements Callable<Void> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScraperService.class);
     // Can probably reduce this time in order to get faster times at the cost of accuracy. Less time given to site to load -> less accuracy.
     private static final Duration PAGE_LOAD_TIMEOUT_SECONDS = Duration.ofSeconds(20);
-    private final String url;
+    private String url;
 
     protected static final AtomicInteger successfulCrawls = new AtomicInteger(0);
     protected static final AtomicInteger phoneNumbersFound = new AtomicInteger(0);
@@ -64,6 +64,10 @@ public class ScraperService implements Callable<Void> {
 
             // Set page load timeout
             driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT_SECONDS);
+
+            if (StringUtils.hasLength(url) && !url.trim().startsWith("https://") && !url.trim().startsWith("http://")) {
+                url = "https://" + url.trim();
+            }
 
             // Navigate to the URL
             driver.get(url);
@@ -114,7 +118,6 @@ public class ScraperService implements Callable<Void> {
         }
     }
 
-    // TODO: Test if this actually merges anything
     private void mergeCompanyInfo(Company mainCompany, Company contactCompany) {
         // Merge data from the contact page into the main company object
         mergeField(mainCompany::setPhoneNumbers, mainCompany.getPhoneNumbers(), contactCompany.getPhoneNumbers());
@@ -240,13 +243,12 @@ public class ScraperService implements Callable<Void> {
         }
     }
 
-    public static void printDataAnalysis(long startTime) {
+    public static void printDataAnalysis(long startTime, List<Company> companies) {
         long endTime = System.currentTimeMillis();
         LOGGER.info("Calculated in: " + String.format("%.3f", (endTime - startTime) / 1000.0) + " seconds.");
         try {
-        List<String> urls = CSVReaderService.getInstance().getUrls();
-        LOGGER.info("Website crawl coverage: " + ScraperService.successfulCrawls + " out of " + urls.size() + ". Percentage: " + getCoverage(ScraperService.successfulCrawls, urls) + ".");
-        LOGGER.info("Datapoints extracted: " + ScraperService.phoneNumbersFound + " (" + getCoverage(ScraperService.phoneNumbersFound, urls) + ") phone numbers, " + ScraperService.socialMediaLinksFound + " (" + getCoverage(ScraperService.socialMediaLinksFound, urls) + ") social media links and " + ScraperService.addressesFound + " (" + getCoverage(ScraperService.addressesFound, urls) + ") addresses found.");
+            LOGGER.info("Website crawl coverage: " + ScraperService.successfulCrawls + " out of " + companies.size() + ". Percentage: " + getCoverage(companies, Company::getUrl) + ".");
+            LOGGER.info("Datapoints extracted: " + ScraperService.phoneNumbersFound + " (" + getCoverage(companies, Company::getPhoneNumbers) + ") phone numbers, " + ScraperService.socialMediaLinksFound + " (" + getCoverage(companies, Company::getSocialMediaLinks) + ") social media links and " + ScraperService.addressesFound + " (" + getCoverage(companies, Company::getAddress) + ") addresses found.");
         } catch (IllegalStateException illegalStateException) {
             LOGGER.error("An error has occurred while accessing CSVReader singleton: " + illegalStateException.getMessage());
         }
@@ -260,8 +262,17 @@ public class ScraperService implements Callable<Void> {
         ScraperService.addressesFound.set(0);
     }
 
-    private static String getCoverage(AtomicInteger atomicInteger, List<String> urls) {
-        return String.format("%.2f", atomicInteger.get() / (double) urls.size() * 100) + "%";
+    private static String getCoverage(List<Company> companies, Function<Company, String> extractorFunction) {
+        AtomicInteger numberOfMatches = new AtomicInteger();
+
+        companies.forEach(company -> {
+            String data = extractorFunction.apply(company);
+            if (StringUtils.hasLength(data)) {
+                numberOfMatches.getAndIncrement();
+            }
+        });
+
+        return String.format("%.2f", numberOfMatches.get() / (double) companies.size() * 100) + "%";
     }
 
     private void addCompany(Company company) {
