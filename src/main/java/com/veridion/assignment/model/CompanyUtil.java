@@ -43,7 +43,7 @@ public class CompanyUtil {
                     query.append(" ");
                 }
             } catch (IllegalAccessException illegalAccessException) {
-                LOGGER.error("An error has occurred while processing the company's fields: " + illegalAccessException.getMessage() + "."); // Handle the exception appropriately
+                LOGGER.error("An error has occurred while processing the company's fields: " + illegalAccessException.getMessage() + ".");
             }
         }
 
